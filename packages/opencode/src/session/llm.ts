@@ -361,7 +361,7 @@ const live: Layer.Layer<
         temperature: params.temperature,
         topP: params.topP,
         topK: params.topK,
-        providerOptions: ProviderTransform.providerOptions(input.model, params.options),
+        providerOptions: ProviderTransform.providerOptions(input.model, filterInternalOptions(params.options)),
         activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
         tools,
         toolChoice: input.toolChoice,
@@ -450,6 +450,14 @@ function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" 
     Permission.merge(input.agent.permission, input.permission ?? []),
   )
   return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
+}
+
+// Filter internal metadata keys from options before passing to providerOptions.
+// These keys are used for internal logic (e.g., variant detection) but should not
+// be sent as request body fields to the provider API.
+function filterInternalOptions(options: Record<string, any>): Record<string, any> {
+  const { underlyingModel, ...rest } = options
+  return rest
 }
 
 // Check if messages contain any tool-call content
