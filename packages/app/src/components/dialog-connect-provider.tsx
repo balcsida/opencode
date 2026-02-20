@@ -9,7 +9,7 @@ import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Spinner } from "@opencode-ai/ui/spinner"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { showToast } from "@/utils/toast"
-import { type Accessor, createEffect, createMemo, createResource, Match, onCleanup, onMount, Switch } from "solid-js"
+import { type Accessor, createEffect, createMemo, createResource, Match, onCleanup, onMount, Show, Switch } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Link } from "@/components/link"
 import { useServerSDK } from "@/context/server-sdk"
@@ -461,6 +461,72 @@ export function DialogConnectProvider(props: { provider: string; directory?: Acc
     )
   }
 
+  function LiteLLMAuthView() {
+    const [formStore, setFormStore] = createStore({
+      baseURL: "",
+      apiKey: "",
+      error: undefined as string | undefined,
+    })
+
+    async function handleSubmit(e: SubmitEvent) {
+      e.preventDefault()
+
+      const form = e.currentTarget as HTMLFormElement
+      const formData = new FormData(form)
+      const baseURL = (formData.get("baseURL") as string)?.trim() || "http://localhost:4000"
+      const apiKey = (formData.get("apiKey") as string)?.trim()
+
+      setFormStore("error", undefined)
+      await globalSDK.client.config.update({
+        provider: {
+          litellm: {
+            options: { baseURL },
+          },
+        },
+      })
+      if (apiKey) {
+        await globalSDK.client.auth.set({
+          providerID: props.provider,
+          auth: { type: "api", key: apiKey },
+        })
+      }
+      await complete()
+    }
+
+    return (
+      <div class="flex flex-col gap-6">
+        <div class="text-14-regular text-text-base">
+          Connect to a LiteLLM proxy server. Models will be discovered automatically.
+        </div>
+        <form onSubmit={handleSubmit} class="flex flex-col items-start gap-4">
+          <TextField
+            autofocus
+            type="text"
+            label="Base URL"
+            placeholder="http://localhost:4000"
+            name="baseURL"
+            value={formStore.baseURL}
+            onChange={(v) => setFormStore("baseURL", v)}
+          />
+          <TextField
+            type="text"
+            label="API Key (optional)"
+            placeholder="sk-..."
+            name="apiKey"
+            value={formStore.apiKey}
+            onChange={(v) => setFormStore("apiKey", v)}
+          />
+          <Show when={formStore.error}>
+            <div class="text-14-regular text-text-critical-base">{formStore.error}</div>
+          </Show>
+          <Button class="w-auto" type="submit" size="large" variant="primary">
+            {language.t("common.submit")}
+          </Button>
+        </form>
+      </div>
+    )
+  }
+
   function OAuthCodeView() {
     const [formStore, setFormStore] = createStore({
       value: "",
@@ -631,6 +697,9 @@ export function DialogConnectProvider(props: { provider: string; directory?: Acc
                     <span>{language.t("provider.connect.status.failed", { error: store.error ?? "" })}</span>
                   </div>
                 </div>
+              </Match>
+              <Match when={method()?.type === "api" && props.provider === "litellm"}>
+                <LiteLLMAuthView />
               </Match>
               <Match when={method()?.type === "api"}>
                 <ApiAuthView />
