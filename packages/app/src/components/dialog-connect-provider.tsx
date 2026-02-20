@@ -474,10 +474,12 @@ export function DialogConnectProvider(props: { provider: string; directory?: Acc
       const url = (data.get("baseURL") as string)?.trim() || "http://localhost:4000"
       const key = (data.get("apiKey") as string)?.trim()
 
-      await globalSDK.client.config.update({
-        provider: {
-          litellm: {
-            options: { baseURL: url },
+      await globalSDK.client.global.config.update({
+        config: {
+          provider: {
+            litellm: {
+              options: { baseURL: url },
+            },
           },
         },
       })
