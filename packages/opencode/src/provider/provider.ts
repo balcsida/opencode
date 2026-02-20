@@ -27,6 +27,7 @@ import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { LiteLLM } from "./litellm"
 
 const log = Log.create({ service: "provider" })
 
@@ -838,6 +839,69 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           },
         },
       }),
+    litellm: Effect.fnUntraced(function* (provider: Info) {
+      const cfg = yield* dep.config()
+      const providerConfig = cfg.provider?.["litellm"]
+
+      const baseURL =
+        providerConfig?.options?.baseURL ??
+        Env.get("LITELLM_HOST") ??
+        Env.get("LITELLM_BASE_URL") ??
+        "http://localhost:4000"
+
+      const apiKey = yield* Effect.gen(function* () {
+        if (providerConfig?.options?.apiKey) return providerConfig.options.apiKey
+        const envKey = Env.get("LITELLM_API_KEY")
+        if (envKey) return envKey
+        const auth = yield* dep.auth("litellm")
+        if (auth?.type === "api") return auth.key
+        return undefined
+      })
+
+      const customHeaders = iife(() => {
+        const raw = Env.get("LITELLM_CUSTOM_HEADERS")
+        if (!raw) return {}
+        try {
+          return JSON.parse(raw) as Record<string, string>
+        } catch {
+          return {}
+        }
+      })
+
+      const timeout = Number(Env.get("LITELLM_TIMEOUT") ?? "5000")
+
+      const discovered = yield* Effect.promise(() =>
+        LiteLLM.discover(baseURL, {
+          apiKey,
+          headers: customHeaders,
+          timeout,
+        }),
+      )
+
+      if (discovered) {
+        for (const [modelID, model] of Object.entries(discovered)) {
+          if (!provider.models[modelID]) {
+            provider.models[modelID] = model
+          }
+        }
+      }
+
+      const hasModels = Object.keys(provider.models).length > 0
+      if (!hasModels) return { autoload: false }
+
+      return {
+        autoload: true,
+        options: {
+          baseURL,
+          apiKey,
+          litellmProxy: true,
+          ...customHeaders,
+        },
+        async getModel(sdk: any, modelID: string) {
+          return sdk.languageModel(modelID)
+        },
+      }
+    }),
   }
 }
 
@@ -1226,6 +1290,35 @@ export const layer = Layer.effect(
           if (enabled && !enabled.has(providerID)) return false
           if (disabled.has(providerID)) return false
           return true
+        }
+
+        // Add GitHub Copilot Enterprise provider that inherits from GitHub Copilot
+        if (database["github-copilot"]) {
+          const githubCopilot = database["github-copilot"]
+          database["github-copilot-enterprise"] = {
+            ...githubCopilot,
+            id: ProviderID.githubCopilotEnterprise,
+            name: "GitHub Copilot Enterprise",
+            models: mapValues(githubCopilot.models, (model) => ({
+              ...model,
+              providerID: ProviderID.githubCopilotEnterprise,
+            })),
+          }
+        }
+
+        // Seed LiteLLM provider when env vars exist but no entry in database
+        if (
+          !database["litellm"] &&
+          (Env.get("LITELLM_API_KEY") || Env.get("LITELLM_HOST") || Env.get("LITELLM_BASE_URL"))
+        ) {
+          database["litellm"] = {
+            id: "litellm",
+            name: "LiteLLM",
+            env: ["LITELLM_API_KEY"],
+            options: {},
+            source: "custom",
+            models: {},
+          }
         }
 
         for (const hook of plugins) {
