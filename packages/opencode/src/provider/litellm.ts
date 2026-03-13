@@ -1,6 +1,7 @@
 import { Log } from "../util/log"
 import { Env } from "../env"
 import type { Provider } from "./provider"
+import { ModelID, ProviderID } from "./schema"
 
 export namespace LiteLLM {
   const log = Log.create({ service: "litellm" })
@@ -75,8 +76,8 @@ export namespace LiteLLM {
     const supportsTemperature = info.supported_openai_params?.includes("temperature") ?? true
 
     return {
-      id: entry.model_name,
-      providerID: "litellm",
+      id: ModelID.make(entry.model_name),
+      providerID: ProviderID.make("litellm"),
       name: entry.model_name,
       api: {
         id: entry.model_name,
@@ -133,8 +134,8 @@ export namespace LiteLLM {
 
   function toBasicModel(id: string): Provider.Model {
     return {
-      id,
-      providerID: "litellm",
+      id: ModelID.make(id),
+      providerID: ProviderID.make("litellm"),
       name: id,
       api: { id, url: "", npm: "@ai-sdk/openai-compatible" },
       status: "active",

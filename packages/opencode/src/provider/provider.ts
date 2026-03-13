@@ -1316,7 +1316,7 @@ export const layer = Layer.effect(
         // Seed LiteLLM provider so it is always available for interactive configuration
         if (!database["litellm"]) {
           database["litellm"] = {
-            id: "litellm",
+            id: ProviderID.make("litellm"),
             name: "LiteLLM",
             env: ["LITELLM_API_KEY"],
             options: {},
