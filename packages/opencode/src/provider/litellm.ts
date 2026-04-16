@@ -1,5 +1,5 @@
-import { Log } from "../util/log"
-import type { Provider } from "./provider"
+import { Log } from "../util"
+import type * as Provider from "./provider"
 import { ModelID, ProviderID } from "./schema"
 
 export namespace LiteLLM {
