@@ -20,7 +20,7 @@ jobs:
     outputs:
       tag: ${{ steps.create.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create draft release
         id: create
@@ -46,7 +46,7 @@ jobs:
             label: linux
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-bun
 
