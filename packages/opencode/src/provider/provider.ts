@@ -1012,7 +1012,11 @@ export const ConfigProvidersResult = Schema.Struct({
 export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
 
 export function defaultModelIDs<T extends { models: Record<string, { id: string }> }>(providers: Record<string, T>) {
-  return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
+  return mapValues(providers, (item) => {
+    const models = Object.values(item.models)
+    if (models.length === 0) return undefined
+    return sort(models)[0].id
+  })
 }
 
 export interface Interface {
