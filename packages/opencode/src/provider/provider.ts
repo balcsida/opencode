@@ -20,6 +20,7 @@ import { Global } from "@opencode-ai/core/global"
 import path from "path"
 import { pathToFileURL } from "url"
 import { Effect, Layer, Context, Schema, Types } from "effect"
+import { Agent as UndiciAgent, fetch as undiciFetch } from "undici"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
@@ -31,6 +32,12 @@ import { ModelID, ProviderID } from "./schema"
 import { LiteLLM } from "./litellm"
 
 const log = Log.create({ service: "provider" })
+
+// Some LiteLLM deployments sit behind proxies (NGINX ingress, Azure App Gateway)
+// that buffer SSE on HTTP/1.1 but stream correctly on HTTP/2. Bun/Node's default
+// fetch only speaks HTTP/1.1, so we route LiteLLM traffic through undici with
+// allowH2 to negotiate HTTP/2 via ALPN when the server supports it.
+const litellmDispatcher = new UndiciAgent({ allowH2: true })
 
 function shouldUseCopilotResponsesApi(modelID: string): boolean {
   const match = /^gpt-(\d+)/.exec(modelID)
@@ -897,6 +904,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           baseURL,
           apiKey,
           litellmProxy: true,
+          fetch: (input: any, init?: any) =>
+            undiciFetch(typeof input === "string" ? input : (input as Request).url, {
+              ...init,
+              dispatcher: litellmDispatcher,
+            }) as unknown as Promise<Response>,
           ...customHeaders,
         },
         async getModel(sdk: any, modelID: string) {
