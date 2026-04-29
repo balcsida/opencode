@@ -62,6 +62,8 @@ jobs:
   publish-release:
     needs: build
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ inputs.version }}
     steps:
       - name: Publish release
         env:
@@ -70,3 +72,29 @@ jobs:
           gh release edit "v${{ inputs.version }}" \
             --draft=false \
             --repo "${{ github.repository }}"
+
+  update-homebrew-tap:
+    needs: publish-release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch to homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # Compute SHAs from the just-published release
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/opencode-darwin-arm64.zip" \
+            -o opencode-arm64.zip
+          SHA256_ARM64=$(shasum -a 256 opencode-arm64.zip | awk '{print $1}')
+          rm opencode-arm64.zip
+
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/opencode-darwin-x64.zip" \
+            -o opencode-x64.zip
+          SHA256_X64=$(shasum -a 256 opencode-x64.zip | awk '{print $1}')
+          rm opencode-x64.zip
+
+          gh api repos/balcsida/homebrew-tap/dispatches \
+            --method POST \
+            --field event_type=update-opencode-fork \
+            --field client_payload="{\"version\":\"${VERSION}\",\"sha256_arm64\":\"${SHA256_ARM64}\",\"sha256_x64\":\"${SHA256_X64}\"}"
