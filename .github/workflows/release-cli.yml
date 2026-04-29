@@ -80,21 +80,23 @@ jobs:
       - name: Dispatch to homebrew-tap
         env:
           GH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REPO: ${{ github.repository }}
         run: |
-          VERSION="${{ inputs.version }}"
+          set -euo pipefail
 
-          # Compute SHAs from the just-published release
-          curl -sL "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/opencode-darwin-arm64.zip" \
-            -o opencode-arm64.zip
-          SHA256_ARM64=$(shasum -a 256 opencode-arm64.zip | awk '{print $1}')
-          rm opencode-arm64.zip
+          fetch_sha() {
+            local arch="$1"
+            curl -fsSL "https://github.com/${REPO}/releases/download/v${VERSION}/opencode-darwin-${arch}.zip" \
+              | shasum -a 256 | awk '{print $1}'
+          }
 
-          curl -sL "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/opencode-darwin-x64.zip" \
-            -o opencode-x64.zip
-          SHA256_X64=$(shasum -a 256 opencode-x64.zip | awk '{print $1}')
-          rm opencode-x64.zip
+          SHA256_ARM64=$(fetch_sha arm64)
+          SHA256_X64=$(fetch_sha x64)
 
-          gh api repos/balcsida/homebrew-tap/dispatches \
-            --method POST \
-            --field event_type=update-opencode-fork \
-            --field client_payload="{\"version\":\"${VERSION}\",\"sha256_arm64\":\"${SHA256_ARM64}\",\"sha256_x64\":\"${SHA256_X64}\"}"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg sha_arm64 "$SHA256_ARM64" \
+            --arg sha_x64 "$SHA256_X64" \
+            '{event_type: "update-opencode-fork", client_payload: {version: $version, sha256_arm64: $sha_arm64, sha256_x64: $sha_x64}}' \
+            | gh api repos/balcsida/homebrew-tap/dispatches --method POST --input -
