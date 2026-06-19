@@ -1,3 +1,4 @@
+import type { MetadataExtractor } from "@ai-sdk/openai-compatible"
 import * as Log from "@opencode-ai/core/util/log"
 import type * as Provider from "./provider"
 import { ModelID, ProviderID } from "./schema"
@@ -241,6 +242,44 @@ export namespace LiteLLM {
       return basic
     }
 
+    return undefined
+  }
+
+  // Extracts cache_creation_input_tokens from LiteLLM's SSE usage chunk.
+  // The OpenAI-compatible AI SDK adapter only reads cached_tokens (reads) from
+  // prompt_tokens_details; it does not parse cache_creation_tokens (writes).
+  // LiteLLM includes cache_creation_input_tokens as a top-level field on the
+  // usage object for Anthropic-backed models, so we surface it here as
+  // providerMetadata.litellm.cacheCreationInputTokens for getUsage() to consume.
+  export const metadataExtractor: MetadataExtractor = {
+    async extractMetadata({ parsedBody }) {
+      const tokens = cacheCreationTokens(parsedBody)
+      if (tokens === undefined) return undefined
+      return { litellm: { cacheCreationInputTokens: tokens } }
+    },
+    createStreamExtractor() {
+      let tokens: number | undefined
+      return {
+        processChunk(parsedChunk) {
+          const t = cacheCreationTokens(parsedChunk)
+          if (t !== undefined) tokens = (tokens ?? 0) + t
+        },
+        buildMetadata() {
+          if (tokens === undefined) return undefined
+          return { litellm: { cacheCreationInputTokens: tokens } }
+        },
+      }
+    },
+  }
+
+  function cacheCreationTokens(raw: unknown): number | undefined {
+    if (!raw || typeof raw !== "object") return undefined
+    const usage = (raw as Record<string, unknown>)["usage"]
+    if (!usage || typeof usage !== "object") return undefined
+    const u = usage as Record<string, unknown>
+    // LiteLLM surfaces cache write tokens as a top-level field on the usage object
+    const v = u["cache_creation_input_tokens"]
+    if (typeof v === "number" && v > 0) return v
     return undefined
   }
 }

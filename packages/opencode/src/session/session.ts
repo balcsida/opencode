@@ -396,6 +396,11 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
         input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"] ??
         // @ts-expect-error
         input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"] ??
+        // LiteLLM proxy surfaces cache_creation_input_tokens as a top-level
+        // usage field; the OpenAI-compatible AI SDK adapter does not parse it,
+        // so we extract it via a custom MetadataExtractor in the LiteLLM provider.
+        // @ts-expect-error
+        input.metadata?.["litellm"]?.["cacheCreationInputTokens"] ??
         0,
     ),
   )

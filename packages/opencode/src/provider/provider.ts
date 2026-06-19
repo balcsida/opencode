@@ -890,9 +890,26 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
 
       if (discovered) {
         for (const [modelID, model] of Object.entries(discovered)) {
-          if (!provider.models[modelID]) {
+          const existing = provider.models[modelID]
+          if (!existing) {
             provider.models[modelID] = model
+            continue
           }
+          // A model declared in opencode.json is created earlier with zero-cost
+          // defaults, zero limits, and minimal capability flags, since config
+          // files do not specify pricing or context windows. The LiteLLM proxy
+          // is the source of truth for cost and limits, so backfill the
+          // discovered values while preserving user-provided fields such as
+          // name and options. Config defaults are zero/falsy, so prefer the
+          // discovered value whenever the config did not set a real one.
+          existing.cost = model.cost
+          existing.limit = {
+            context: existing.limit?.context || model.limit?.context || 0,
+            output: existing.limit?.output || model.limit?.output || 0,
+            input: existing.limit?.input ?? model.limit?.input,
+          }
+          existing.capabilities = { ...model.capabilities, ...existing.capabilities }
+          if (!existing.api.id) existing.api.id = model.api.id
         }
       }
 
@@ -905,6 +922,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           baseURL,
           apiKey,
           litellmProxy: true,
+          // Capture cache_creation_input_tokens from LiteLLM's SSE usage chunk
+          // so getUsage() can apply the correct cache-write pricing rate.
+          metadataExtractor: LiteLLM.metadataExtractor,
           ...customHeaders,
         },
         async getModel(sdk: any, modelID: string) {
