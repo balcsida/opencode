@@ -922,6 +922,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           baseURL,
           apiKey,
           litellmProxy: true,
+          // Capture cache_creation_input_tokens from LiteLLM's SSE usage chunk
+          // so getUsage() can apply the correct cache-write pricing rate.
+          metadataExtractor: LiteLLM.metadataExtractor,
           ...customHeaders,
         },
         async getModel(sdk: any, modelID: string) {
