@@ -1,11 +1,8 @@
-import * as Log from "@opencode-ai/core/util/log"
 import type { Provider } from "./provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 
 export namespace LiteLLM {
-  const log = Log.create({ service: "litellm" })
-
   interface ModelInfoEntry {
     model_name: string
     litellm_params?: {
@@ -225,22 +222,10 @@ export namespace LiteLLM {
 
     // Try /model/info first for rich metadata, fall back to /models
     const rich = await fetchModelInfo(base, headers, timeout)
-    if (rich) {
-      log.info("discovered models from LiteLLM /model/info", {
-        count: Object.keys(rich).length,
-        host,
-      })
-      return rich
-    }
+  if (rich) return rich
 
     const basic = await fetchModelList(base, headers, timeout)
-    if (Object.keys(basic).length > 0) {
-      log.info("discovered models from /models (fallback)", {
-        count: Object.keys(basic).length,
-        host,
-      })
-      return basic
-    }
+  if (Object.keys(basic).length > 0) return basic
 
     return undefined
   }
