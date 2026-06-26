@@ -474,7 +474,7 @@ export function DialogConnectProvider(props: { provider: string; directory?: Acc
       const url = (data.get("baseURL") as string)?.trim() || "http://localhost:4000"
       const key = (data.get("apiKey") as string)?.trim()
 
-      await globalSDK.client.global.config.update({
+      await serverSDK().client.global.config.update({
         config: {
           provider: {
             litellm: {
@@ -484,7 +484,7 @@ export function DialogConnectProvider(props: { provider: string; directory?: Acc
         },
       })
       if (key) {
-        await globalSDK.client.auth.set({
+        await serverSDK().client.auth.set({
           providerID: props.provider,
           auth: { type: "api", key },
         })
