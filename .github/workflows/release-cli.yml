@@ -1,0 +1,100 @@
+name: release-cli
+run-name: "release CLI ${{ inputs.version }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.14.28-litellm.1)"
+        required: true
+        type: string
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.create.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ inputs.version }}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "LiteLLM provider support build. Based on https://github.com/anomalyco/opencode/pull/14468." \
+            --target "$GITHUB_SHA" \
+            --draft
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macos
+          - os: ubuntu-24.04
+            label: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Build upload CLI
+        working-directory: packages/opencode
+        run: ./script/build.ts
+        env:
+          OPENCODE_VERSION: ${{ inputs.version }}
+          OPENCODE_RELEASE: "true"
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-release:
+    needs: build
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ inputs.version }}
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ inputs.version }}" \
+            --draft=false \
+            --repo "${{ github.repository }}"
+
+  update-homebrew-tap:
+    needs: publish-release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.TAP_DISPATCH_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          fetch_sha() {
+            local arch="$1"
+            curl -fsSL "https://github.com/${REPO}/releases/download/v${VERSION}/opencode-darwin-${arch}.zip" \
+              | shasum -a 256 | awk '{print $1}'
+          }
+          SHA256_ARM64=$(fetch_sha arm64)
+          SHA256_X64=$(fetch_sha x64)
+          jq -n \
+            --arg version "$VERSION" \
+            --arg sha_arm64 "$SHA256_ARM64" \
+            --arg sha_x64 "$SHA256_X64" \
+            '{event_type: "update-opencode-fork", client_payload: {version: $version, sha256_arm64: $sha_arm64, sha256_x64: $sha_x64}}' \
+            | gh api repos/balcsida/homebrew-tap/dispatches --method POST --input -
