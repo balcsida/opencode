@@ -97,6 +97,10 @@ OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bas
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
 ```
 
+### GitHub Enterprise Server
+
+Use the [GHES distribution](./GHES.md) for a self-hosted GitHub Actions runner.
+
 ### Agents
 
 OpenCode includes two built-in agents you can switch between with the `Tab` key.
