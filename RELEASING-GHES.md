@@ -8,17 +8,17 @@ git verify-commit "$probe"
 git switch feat/ghes-support
 test "$(git branch --show-current)" = feat/ghes-support
 git fetch origin feat/ghes-support
-git fetch upstream tag v1.18.16
+git fetch upstream tag v1.18.26
 ghes_old_sha=$(git rev-parse origin/feat/ghes-support)
 if [ "$(git rev-parse HEAD)" != "$ghes_old_sha" ]; then
   echo "Local feat/ghes-support does not match origin/feat/ghes-support" >&2
   exit 1
 fi
-ghes_old_base=$(git merge-base "$ghes_old_sha" v1.18.16)
-git rebase --gpg-sign --onto v1.18.16 "$ghes_old_base"
-git range-diff "$ghes_old_base...$ghes_old_sha" "v1.18.16...HEAD"
-git log --show-signature v1.18.16..HEAD
-git diff --check v1.18.16...HEAD
+ghes_old_base=$(git merge-base "$ghes_old_sha" v1.18.26)
+git rebase --gpg-sign --onto v1.18.26 "$ghes_old_base"
+git range-diff "$ghes_old_base...$ghes_old_sha" "v1.18.26...HEAD"
+git log --show-signature v1.18.26..HEAD
+git diff --check v1.18.26...HEAD
 cd packages/opencode
 bun test --timeout 30000 test/cli/github-remote.test.ts test/cli/github-endpoints.test.ts
 cd ../..
@@ -43,8 +43,8 @@ git push --force-with-lease=refs/heads/ghes-dist:$ghes_dist_old_sha origin ghes-
 After the branch push succeeds:
 
 ```bash
-git tag -s -m "GHES distribution v1.18.16-ghes.4" v1.18.16-ghes.4
-git push origin refs/tags/v1.18.16-ghes.4
+git tag -s -m "GHES distribution v1.18.26-ghes.1" v1.18.26-ghes.1
+git push origin refs/tags/v1.18.26-ghes.1
 ```
 
 The tag starts `.github/workflows/ghes-release.yml`. Recover a failed tag run without relying on workflow dispatch from the default branch:
