@@ -181,6 +181,10 @@ const layer: Layer.Layer<
       filepath: string,
       messageID: MessageID,
     ) {
+      // OPENCODE_DISABLE_PROJECT_CONFIG suppresses startup project instructions;
+      // nested repo AGENTS.md/CLAUDE.md/CONTEXT.md discovered during reads must honor it too.
+      if (Flag.OPENCODE_DISABLE_PROJECT_CONFIG) return []
+
       const sys = yield* systemPaths()
       const already = extract(messages)
       const results: { filepath: string; content: string }[] = []
