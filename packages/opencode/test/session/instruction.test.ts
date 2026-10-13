@@ -206,6 +206,29 @@ describe("Instruction.resolve", () => {
     ),
   )
 
+  it.live("returns no nested instructions when project config is disabled", () =>
+    withFiles({ "subdir/AGENTS.md": "# Subdir Instructions", "subdir/nested/file.ts": "const x = 1" }, (dir) =>
+      Effect.gen(function* () {
+        const previous = process.env.OPENCODE_DISABLE_PROJECT_CONFIG
+        process.env.OPENCODE_DISABLE_PROJECT_CONFIG = "1"
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previous === undefined) delete process.env.OPENCODE_DISABLE_PROJECT_CONFIG
+            else process.env.OPENCODE_DISABLE_PROJECT_CONFIG = previous
+          }),
+        )
+
+        const svc = yield* Instruction.Service
+        const results = yield* svc.resolve(
+          [],
+          path.join(dir, "subdir", "nested", "file.ts"),
+          MessageID.make("msg_message-disabled-1"),
+        )
+        expect(results).toEqual([])
+      }).pipe(Effect.scoped),
+    ),
+  )
+
   test.todo("fetches remote instructions from config URLs via HttpClient", () => {})
 })
 
