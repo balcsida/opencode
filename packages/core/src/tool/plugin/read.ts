@@ -7,6 +7,7 @@ import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
+import { InstructionDiscovery } from "../../instruction-discovery.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { AbsolutePath } from "../../schema.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
@@ -34,6 +35,7 @@ export const Plugin = {
     const sessionInstructions = yield* SessionInstructions.Service
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
+    const discovery = yield* InstructionDiscovery.Service
 
     yield* ctx.tool
       .transform((editor) =>
@@ -82,10 +84,10 @@ export const Plugin = {
               // After a successful read, discover nearby AGENTS.md walking up to the Location
               // root exclusive and inject them as durable synthetic instructions. For a
               // directory listing the walk starts at the directory itself (so its own AGENTS.md
-              // is discovered); for a file it starts at the file's dirname. External reads are
-              // skipped, and discovery failures never fail the read.
+              // is discovered); for a file it starts at the file's dirname. External reads and
+              // disabled project instructions are skipped, and discovery failures never fail the read.
               yield* Effect.gen(function* () {
-                if (result.target.externalDirectory !== undefined) return
+                if (!discovery.project || result.target.externalDirectory !== undefined) return
                 const resolved = yield* fs.resolve(result.target.absolute)
                 const root = yield* fs.resolve(location.directory)
                 // The Location and its ancestors are already supplied by initial instructions,

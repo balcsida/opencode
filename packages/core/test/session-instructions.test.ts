@@ -11,6 +11,7 @@ import { Bus } from "@opencode/core/bus"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Global } from "@opencode/util/global"
 import { Image } from "@opencode/core/image"
+import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
 import { Location } from "@opencode/core/location"
 import { FileAccess } from "@opencode/core/file-access"
 import { Model } from "@opencode/core/model"
@@ -44,6 +45,7 @@ const readToolNode = makeLocationNode({
     ReadToolFileSystem.node,
     FileAccess.node,
     Image.node,
+    InstructionDiscovery.node,
     Permission.node,
     SessionInstructions.node,
     FSUtil.node,
@@ -55,35 +57,38 @@ const permission = permissionLayer({ assert: () => Effect.void })
 const config = Config.testLayer()
 const imageLayer = AppNodeBuilder.build(Image.node, [Config.node.replace(config)])
 
-const testLayer = AppNodeBuilder.build(
-  LayerNode.group([
-    Database.node,
-    Bus.node,
-    SessionProjector.node,
-    SessionStore.node,
-    Session.node,
-    Location.node,
-    FSUtil.node,
-    FileAccess.node,
-    ReadToolFileSystem.node,
-    readToolNode,
-    Tool.node,
-    PluginHooks.node,
-    SessionInstructions.node,
-    Global.node,
-    Image.node,
-  ]),
-  [
-    Project.node.replace(globalProjectNode),
-    SessionExecution.node.replace(SessionExecution.noopLayer),
-    Location.node.replace(tempLocationLayer),
-    Permission.node.replace(permission),
-    Config.node.replace(config),
-    Image.node.replace(imageLayer),
-  ],
-)
+const testLayer = (project?: boolean) =>
+  AppNodeBuilder.build(
+    LayerNode.group([
+      Database.node,
+      Bus.node,
+      SessionProjector.node,
+      SessionStore.node,
+      Session.node,
+      Location.node,
+      FSUtil.node,
+      FileAccess.node,
+      ReadToolFileSystem.node,
+      readToolNode,
+      Tool.node,
+      PluginHooks.node,
+      SessionInstructions.node,
+      Global.node,
+      Image.node,
+    ]),
+    [
+      Project.node.replace(globalProjectNode),
+      SessionExecution.node.replace(SessionExecution.noopLayer),
+      Location.node.replace(tempLocationLayer),
+      Permission.node.replace(permission),
+      Config.node.replace(config),
+      Image.node.replace(imageLayer),
+      InstructionDiscovery.node.replace(InstructionDiscovery.configured({ project })),
+    ],
+  )
 
-const it = testEffect(testLayer)
+const it = testEffect(testLayer())
+const itWithoutProject = testEffect(testLayer(false))
 
 const identity = {
   agent: Agent.ID.make("build"),
@@ -294,6 +299,24 @@ describe("SessionInstructions", () => {
       // The walk starts and stops at the Location root: the root AGENTS.md is searched but
       // dropped by the dirname filter, and up() only walks upward so nested dirs are unseen.
       yield* executeTool(registry, readCall(sessionID, "call-root-list", "."))
+
+      expect(yield* synthetics(sessionID)).toHaveLength(0)
+    }),
+  )
+
+  itWithoutProject.live("injects no AGENTS.md above a read when project instructions are disabled", () =>
+    Effect.gen(function* () {
+      const location = yield* Location.Service
+      const dir = location.directory
+      yield* mkdir(path.resolve(dir, "sub"))
+      yield* writeAgents(path.resolve(dir, "sub", "AGENTS.md"), "sub-instructions")
+      yield* Effect.promise(() => fs.writeFile(path.resolve(dir, "sub", "file.txt"), "content"))
+
+      const session = yield* Session.Service
+      const registry = yield* Tool.Service
+      const sessionID = (yield* session.create({ location: Location.Ref.make({ directory: dir }) })).id
+
+      yield* executeTool(registry, readCall(sessionID, "call-disabled", "sub/file.txt"))
 
       expect(yield* synthetics(sessionID)).toHaveLength(0)
     }),

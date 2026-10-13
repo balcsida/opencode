@@ -8,6 +8,7 @@ import { FileSystem } from "@opencode/core/filesystem"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "@opencode/core/location"
 import { Image } from "@opencode/core/image"
+import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
 import { Permission } from "@opencode/core/permission"
 import { Session } from "@opencode/core/session"
 import { AbsolutePath, RelativePath } from "@opencode/core/schema"
@@ -32,6 +33,7 @@ const readToolNode = makeLocationNode({
     ReadToolFileSystem.node,
     FileAccess.node,
     Image.node,
+    InstructionDiscovery.node,
     Permission.node,
     SessionInstructions.node,
     FSUtil.node,
