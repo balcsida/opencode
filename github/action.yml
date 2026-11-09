@@ -91,6 +91,7 @@ runs:
         esac
         URL="https://github.com/balcsida/opencode/releases/download/$VERSION"
         mkdir -p ~/.opencode/bin
+        cd "$RUNNER_TEMP"
         curl -fsSLO "$URL/checksums.txt"
         curl -fsSLO "$URL/$ASSET"
         if command -v sha256sum >/dev/null; then
