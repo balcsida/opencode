@@ -4,8 +4,8 @@ This fork publishes standalone OpenCode archives and a composite action for GitH
 
 ```bash
 mkdir -p ~/.opencode/bin
-curl -LO https://github.com/balcsida/opencode/releases/download/v1.18.26-ghes.1/checksums.txt
-curl -LO https://github.com/balcsida/opencode/releases/download/v1.18.26-ghes.1/opencode-linux-x64.tar.gz
+curl -LO https://github.com/balcsida/opencode/releases/download/v1.18.26-ghes.3/checksums.txt
+curl -LO https://github.com/balcsida/opencode/releases/download/v1.18.26-ghes.3/opencode-linux-x64.tar.gz
 grep '  opencode-linux-x64.tar.gz$' checksums.txt | sha256sum -c -
 tar -xzf opencode-linux-x64.tar.gz -C ~/.opencode/bin
 ```
@@ -13,13 +13,13 @@ tar -xzf opencode-linux-x64.tar.gz -C ~/.opencode/bin
 Or use the action:
 
 ```yaml
-- uses: balcsida/opencode/github@v1.18.26-ghes.1
+- uses: balcsida/opencode/github@v1.18.26-ghes.3
   with:
     model: openai/gpt-5
-    version: v1.18.26-ghes.1
+    version: v1.18.26-ghes.3
 ```
 
-`v1.18.26-ghes.1` tracks upstream `v1.18.26`. `v<upstream>-ghes.<revision>` tracks the corresponding upstream OpenCode release, while `latest` resolves to this fork's latest GHES release.
+`v1.18.26-ghes.3` tracks upstream `v1.18.26`. `v<upstream>-ghes.<revision>` tracks the corresponding upstream OpenCode release, while `latest` resolves to this fork's latest GHES release.
 
 > [!WARNING]
 > These are unofficial compatibility builds, not releases supported by anomalyco/opencode. Review and pin the tag before using them in production.
