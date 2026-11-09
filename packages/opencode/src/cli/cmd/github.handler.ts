@@ -1899,7 +1899,8 @@ query($owner: String!, $repo: String!, $number: Int!) {
     }
 
     async function revokeAppToken() {
-      if (!appToken) return
+      // A caller-supplied GHES_APP_TOKEN is reused by later workflow steps; only revoke tokens minted here.
+      if (!appToken || process.env["GHES_APP_TOKEN"]) return
 
       await fetch(`${ghUrls.apiUrl}/installation/token`, {
         method: "DELETE",
